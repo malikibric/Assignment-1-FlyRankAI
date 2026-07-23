@@ -1,13 +1,11 @@
 const express = require('express');
-require('./database');
+const db = require('./database');
 
 const app = express();
 const PORT = 3000;
 
-// Middleware to parse JSON bodies (optional but good practice)
 app.use(express.json());
 
-// First JSON endpoint
 app.get('/api/hello', (req, res) => {
   res.json({
     message: 'Hello, World!',
@@ -15,13 +13,35 @@ app.get('/api/hello', (req, res) => {
   });
 });
 
-// Second JSON endpoint
 app.get('/api/status', (req, res) => {
   res.json({
     service: 'My First API',
     uptime: process.uptime(),
     timestamp: new Date().toISOString()
   });
+});
+
+const taskFromRow = (row) => ({
+  id: row.id,
+  title: row.title,
+  done: Boolean(row.done)
+});
+
+app.get('/tasks', (req, res) => {
+  const tasks = db.prepare('SELECT * FROM tasks').all().map(taskFromRow);
+  res.json(tasks);
+});
+
+app.get('/tasks/:id', (req, res) => {
+  const task = db
+    .prepare('SELECT * FROM tasks WHERE id = ?')
+    .get(req.params.id);
+
+  if (!task) {
+    return res.status(404).json({ error: 'Task not found' });
+  }
+
+  res.json(taskFromRow(task));
 });
 
 app.listen(PORT, () => {
